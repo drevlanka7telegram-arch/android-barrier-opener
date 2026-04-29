@@ -3,15 +3,27 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:padding="24dp">
 
     <Button
-        android:id="@+id/btn_grant"
+        android:id="@+id/btn_open"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:backgroundTint="#4CAF50"
         android:text="Открыть шлагбаум"
         android:textColor="#FFFFFF"
         android:textSize="24sp"
-        android:padding="32dp"/>
+        android:padding="32dp"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btn_change_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:backgroundTint="#0288D1"
+        android:text="Изменить местоположение шлагбаума"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:padding="24dp"/>
 </LinearLayout>
