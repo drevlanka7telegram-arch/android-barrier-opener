@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyManager
 import android.widget.Button
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -13,37 +15,35 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
 import android.view.animation.AnimationUtils
+import android.widget.ProgressBar
 import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var telephonyManager: TelephonyManager
     private val prefs by lazy {
         getSharedPreferences("barrier", Context.MODE_PRIVATE)
     }
 
     // Load from resources or saved prefs
-    private var targetLat: Double
-    private var targetLng: Double
-    private var radiusMeters: Double
-    private val phoneNumber: String
-
-    init {
-        // These will be initialized in onCreate because we need context for resources.
-        targetLat = 0.0
-        targetLng = 0.0
-        radiusMeters = 0.0
-        phoneNumber = ""
-    }
+    private var targetLat: Double = 0.0
+    private var targetLng: Double = 0.0
+    private var radiusMeters: Double = 0.0
+    private lateinit var phoneNumber: String
+    private lateinit var ussdCode: String
 
     // UI
     private lateinit var btnOpen: Button
     private lateinit var btnChange: Button
+    private lateinit var progressBar: ProgressBar
+    private var callActive = false
 
     // Permission launchers
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
             if (perms.values.all { it }) startLocationCheck()
+            else Toast.makeText(this, "Permissions required", Toast.LENGTH_SHORT).show()
         }
 
     private val mapPickerLauncher =
@@ -71,6 +71,7 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize from resources
         phoneNumber = getString(R.string.phone_number)
+        ussdCode = getString(R.string.ussd_code)
         radiusMeters = getString(R.string.default_radius).toDoubleOrNull() ?: 100.0
 
         // Load saved coordinates or defaults
@@ -83,18 +84,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
         btnOpen = findViewById(R.id.btn_open)
         btnChange = findViewById(R.id.btn_change_location)
+        progressBar = findViewById(R.id.progress_bar)
 
         btnOpen.setOnClickListener {
-            // Disable button to prevent multiple clicks
+            if (callActive) {
+                Toast.makeText(this, "Call already in progress", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             btnOpen.isEnabled = false
+            progressBar.visibility = ProgressBar.VISIBLE
             val anim = AnimationUtils.loadAnimation(this, R.anim.scale_anim)
             anim.setAnimationListener(object : android.view.animation.Animation.AnimationListener {
                 override fun onAnimationStart(animation: android.view.animation.Animation?) {}
                 override fun onAnimationEnd(animation: android.view.animation.Animation?) {
                     btnOpen.isEnabled = true
+                    progressBar.visibility = ProgressBar.GONE
                 }
                 override fun onAnimationRepeat(animation: android.view.animation.Animation?) {}
             })
@@ -134,7 +142,8 @@ class MainActivity : AppCompatActivity() {
         permissionLauncher.launch(
             arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.CALL_PHONE
+                Manifest.permission.CALL_PHONE,
+                Manifest.permission.READ_PHONE_STATE
             )
         )
     }
@@ -147,6 +156,10 @@ class MainActivity : AppCompatActivity() {
                 ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.CALL_PHONE
+                ) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_PHONE_STATE
                 ) == PackageManager.PERMISSION_GRANTED
     }
 
@@ -231,8 +244,69 @@ class MainActivity : AppCompatActivity() {
         }
         try {
             startActivity(intent)
+            callActive = true
+            // Listen for call state to send USSD when call is active
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_PHONE_STATE
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+            } else {
+                Toast.makeText(this, "READ_PHONE_STATE permission missing, cannot send USSD", Toast.LENGTH_SHORT).show()
+            }
         } catch (e: SecurityException) {
             Toast.makeText(this, "Cannot make call: ${e.message}", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val phoneStateListener = object : PhoneStateListener() {
+        override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+            when (state) {
+                TelephonyManager.CALL_STATE_OFFHOOK -> {
+                    // Call is active, send USSD
+                    sendUssd()
+                    telephonyManager.listen(this, PhoneStateListener.LISTEN_NONE)
+                    callActive = false
+                }
+                TelephonyManager.CALL_STATE_IDLE -> {
+                    // Call ended, clean up
+                    telephonyManager.listen(this, PhoneStateListener.LISTEN_NONE)
+                    callActive = false
+                }
+            }
+        }
+    }
+
+    private fun sendUssd() {
+        // Format USSD code (replace # with URI-encoded %23 if needed)
+        val ussdFormatted = ussdCode.replace("#", "%23")
+        val ussdUri = Uri.parse("tel:$ussdFormatted")
+        val ussdIntent = Intent(Intent.ACTION_CALL).apply {
+            data = ussdUri
+        }
+        try {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.CALL_PHONE
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                startActivity(ussdIntent)
+                Toast.makeText(this, "USSD command sent", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: SecurityException) {
+            Toast.makeText(this, "Cannot send USSD: ${e.message}", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "USSD error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::telephonyManager.isInitialized) {
+            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
         }
     }
 }
