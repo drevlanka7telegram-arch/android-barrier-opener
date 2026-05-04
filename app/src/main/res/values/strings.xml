@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Barrier Opener</string>
+    <string name="app_name">ШлагбаумДревлянка7</string>
     <string name="phone_number">89114086713</string>
     <string name="ussd_code">*123#</string>
     <string name="default_radius">100</string>
