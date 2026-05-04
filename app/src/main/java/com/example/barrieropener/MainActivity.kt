@@ -172,13 +172,34 @@ class MainActivity : AppCompatActivity() {
         updateDistanceText()
         updateLastOpenedText()
         
-        // If background mode is enabled, ensure geofence is active
         val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this)
         val backgroundMode = defaultPrefs.getBoolean("background_mode", false)
+        val helper = GeofenceHelper(this)
+
         if (backgroundMode) {
-            val helper = GeofenceHelper(this)
-            val radius = radiusMeters.toFloat()
-            helper.addGeofence(targetLat, targetLng, radius)
+            // Check for background location permission before adding geofence
+            if (hasBackgroundLocationPermission()) {
+                val radius = radiusMeters.toFloat()
+                helper.addGeofence(targetLat, targetLng, radius)
+            } else {
+                // Permission missing, disable mode to avoid silent failures
+                defaultPrefs.edit().putBoolean("background_mode", false).apply()
+                Toast.makeText(this, "Нет разрешения на фоновую геолокацию", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // Remove geofence if mode is disabled
+            helper.removeGeofence()
+        }
+    }
+
+    private fun hasBackgroundLocationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true // Below Q, FINE_LOCATION is enough
         }
     }
 
