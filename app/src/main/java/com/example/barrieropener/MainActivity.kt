@@ -3,23 +3,25 @@ package com.example.barrieropener
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
-import android.widget.Button
+import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.preference.PreferenceManager
 import com.google.android.gms.location.*
-import android.view.animation.AnimationUtils
-import android.widget.ProgressBar
-import android.widget.Toast
+import com.google.android.material.button.MaterialButton
 import java.net.URLEncoder
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,6 +29,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var telephonyManager: TelephonyManager
     private val prefs by lazy {
         getSharedPreferences("barrier", Context.MODE_PRIVATE)
+    }
+    private val historyPrefs by lazy {
+        getSharedPreferences("barrier_history", Context.MODE_PRIVATE)
     }
 
     // Load from resources or saved prefs
@@ -37,9 +42,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ussdCode: String
 
     // UI
-    private lateinit var btnOpen: Button
-    private lateinit var btnChange: Button
-    private lateinit var progressBar: ProgressBar
+    private lateinit var btnOpen: MaterialButton
+    private lateinit var btnChange: MaterialButton
+    private lateinit var btnSettings: MaterialButton
+    private lateinit var tvStatus: TextView
+    private lateinit var tvLastOpened: TextView
+    private lateinit var tvDistance: TextView
     private var callActive = false
 
     // Permission launchers
@@ -61,6 +69,7 @@ class MainActivity : AppCompatActivity() {
                     targetLat = match.groupValues[1].toDouble()
                     targetLng = match.groupValues[2].toDouble()
                     saveCoordinates()
+                    updateStatus("Местоположение обновлено")
                     Toast.makeText(this, "Coordinates updated", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "Invalid coordinates format", Toast.LENGTH_SHORT).show()
@@ -74,10 +83,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Initialize from resources
-        phoneNumber = getString(R.string.phone_number)
-        ussdCode = getString(R.string.ussd_code)
-        radiusMeters = getString(R.string.default_radius).toDoubleOrNull() ?: 100.0
+        // Initialize settings from preferences or resources
+        reloadSettings()
 
         // Load saved coordinates or defaults
         if (prefs.contains("lat") && prefs.contains("lng")) {
@@ -91,9 +98,17 @@ class MainActivity : AppCompatActivity() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
+        // UI elements
         btnOpen = findViewById(R.id.btn_open)
         btnChange = findViewById(R.id.btn_change_location)
-        progressBar = findViewById(R.id.progress_bar)
+        btnSettings = findViewById(R.id.btn_settings)
+        tvStatus = findViewById(R.id.tv_status)
+        tvLastOpened = findViewById(R.id.tv_last_opened)
+        tvDistance = findViewById(R.id.tv_distance)
+
+        // Update UI with current settings
+        updateDistanceText()
+        updateLastOpenedText()
 
         btnOpen.setOnClickListener {
             if (callActive) {
@@ -101,17 +116,7 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             btnOpen.isEnabled = false
-            progressBar.visibility = ProgressBar.VISIBLE
-            val anim = AnimationUtils.loadAnimation(this, R.anim.scale_anim)
-            anim.setAnimationListener(object : android.view.animation.Animation.AnimationListener {
-                override fun onAnimationStart(animation: android.view.animation.Animation?) {}
-                override fun onAnimationEnd(animation: android.view.animation.Animation?) {
-                    btnOpen.isEnabled = true
-                    progressBar.visibility = ProgressBar.GONE
-                }
-                override fun onAnimationRepeat(animation: android.view.animation.Animation?) {}
-            })
-            it.startAnimation(anim)
+            updateStatus("Проверка местоположения...")
             if (checkPermissions()) startLocationCheck() else requestPermissions()
         }
 
@@ -134,8 +139,57 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        btnSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
         // Auto-check permissions on start
-        if (checkPermissions()) startLocationCheck() else requestPermissions()
+        if (checkPermissions()) {
+            updateStatus("Готов к работе")
+        } else {
+            requestPermissions()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reload settings in case they changed
+        reloadSettings()
+        updateDistanceText()
+        updateLastOpenedText()
+    }
+
+    private fun reloadSettings() {
+        val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        // Load from default shared preferences (set via SettingsActivity) or fallback to resources
+        phoneNumber = defaultPrefs.getString("phone_number", getString(R.string.phone_number)) ?: getString(R.string.phone_number)
+        ussdCode = defaultPrefs.getString("ussd_code", getString(R.string.ussd_code)) ?: getString(R.string.ussd_code)
+        val radiusStr = defaultPrefs.getString("default_radius", getString(R.string.default_radius)) ?: getString(R.string.default_radius)
+        radiusMeters = radiusStr.toDoubleOrNull() ?: 100.0
+    }
+
+    private fun updateStatus(status: String) {
+        runOnUiThread {
+            tvStatus.text = status
+        }
+    }
+
+    private fun updateDistanceText() {
+        // This will be updated when we get location
+        tvDistance.text = "Радиус действия: ${radiusMeters.toInt()} м"
+    }
+
+    private fun updateLastOpenedText() {
+        val lastTimestamp = historyPrefs.getLong("last_timestamp", 0L)
+        if (lastTimestamp > 0) {
+            val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+            val date = Date(lastTimestamp)
+            tvLastOpened.text = "Последнее открытие: ${sdf.format(date)}"
+            tvLastOpened.visibility = TextView.VISIBLE
+        } else {
+            tvLastOpened.text = "Последнее открытие: -"
+            tvLastOpened.visibility = TextView.GONE
+        }
     }
 
     private fun saveCoordinates() {
@@ -143,6 +197,23 @@ class MainActivity : AppCompatActivity() {
             .putFloat("lat", targetLat.toFloat())
             .putFloat("lng", targetLng.toFloat())
             .apply()
+    }
+
+    private fun saveToHistory(lat: Double, lng: Double) {
+        val timestamp = System.currentTimeMillis()
+        val history = historyPrefs.getString("history", "") ?: ""
+        val newEntry = "$timestamp|$lat|$lng"
+        val entries = if (history.isEmpty()) mutableListOf() else history.split(";").toMutableList()
+        entries.add(0, newEntry) // Add to beginning
+        // Keep only last 10
+        if (entries.size > 10) {
+            entries.removeAt(entries.size - 1)
+        }
+        historyPrefs.edit()
+            .putString("history", entries.joinToString(";"))
+            .putLong("last_timestamp", timestamp)
+            .apply()
+        updateLastOpenedText()
     }
 
     private fun requestPermissions() {
@@ -171,6 +242,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startLocationCheck() {
+        updateStatus("Получение местоположения...")
         // First try last location
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location ->
@@ -205,6 +277,8 @@ class MainActivity : AppCompatActivity() {
                     if (location != null) {
                         checkDistanceAndCall(location.latitude, location.longitude)
                     } else {
+                        updateStatus("Ошибка геолокации")
+                        btnOpen.isEnabled = true
                         Toast.makeText(
                             this@MainActivity,
                             "Unable to get location",
@@ -225,12 +299,17 @@ class MainActivity : AppCompatActivity() {
             lat, lng,
             distance
         )
-        if (distance[0] <= radiusMeters) {
+        val dist = distance[0]
+        tvDistance.text = "До шлагбаума: ${dist.toInt()} м"
+        if (dist <= radiusMeters) {
+            updateStatus("Открываем шлагбаум...")
             makeCall()
         } else {
+            updateStatus("Вы далеко от шлагбаума")
+            btnOpen.isEnabled = true
             Toast.makeText(
                 this,
-                "You are ${distance[0].toInt()} m away from barrier. Need to be within ${radiusMeters.toInt()} m.",
+                "You are ${dist.toInt()} m away from barrier. Need to be within ${radiusMeters.toInt()} m.",
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -243,6 +322,7 @@ class MainActivity : AppCompatActivity() {
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             Toast.makeText(this, "CALL_PHONE permission not granted", Toast.LENGTH_SHORT).show()
+            btnOpen.isEnabled = true
             return
         }
 
@@ -261,11 +341,14 @@ class MainActivity : AppCompatActivity() {
                 registerCallStateListener()
             } else {
                 Toast.makeText(this, "READ_PHONE_STATE permission missing, cannot send USSD", Toast.LENGTH_SHORT).show()
+                btnOpen.isEnabled = true
             }
         } catch (e: SecurityException) {
             Toast.makeText(this, "Cannot make call: ${e.message}", Toast.LENGTH_SHORT).show()
+            btnOpen.isEnabled = true
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            btnOpen.isEnabled = true
         }
     }
 
@@ -284,7 +367,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val phoneStateListener = object : PhoneStateListener() {
+    private val phoneStateListener = object : android.telephony.PhoneStateListener() {
         override fun onCallStateChanged(state: Int, phoneNumber: String?) {
             handleCallStateChange(state)
         }
@@ -297,11 +380,17 @@ class MainActivity : AppCompatActivity() {
                 sendUssd()
                 unregisterCallStateListener()
                 callActive = false
+                updateStatus("Шлагбаум открыт!")
+                btnOpen.isEnabled = true
+                // Save to history
+                saveToHistory(targetLat, targetLng)
             }
             TelephonyManager.CALL_STATE_IDLE -> {
                 // Call ended, clean up
                 unregisterCallStateListener()
                 callActive = false
+                updateStatus("Готов к работе")
+                btnOpen.isEnabled = true
             }
         }
     }

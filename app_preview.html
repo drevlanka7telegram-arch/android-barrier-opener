@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barrier Opener - Предпросмотр</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .phone-container {
+            width: 360px;
+            height: 640px;
+            background: #f5f5f5;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            position: relative;
+            border: 8px solid #333;
+        }
+        
+        .status-bar {
+            height: 24px;
+            background: #4CAF50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .app-content {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: calc(100% - 24px);
+        }
+        
+        .button {
+            min-width: 200px;
+            padding: 32px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 24px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            margin-bottom: 16px;
+            text-align: center;
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .btn-open {
+            background-color: #4CAF50;
+        }
+        
+        .btn-change {
+            background-color: #0288D1;
+            font-size: 18px;
+        }
+        
+        .app-title {
+            position: absolute;
+            top: 30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: #333;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        .info-text {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-container">
+        <div class="status-bar">
+            <span>9:41</span>
+            <span>🔋 100%</span>
+        </div>
+        
+        <div class="app-title">Barrier Opener</div>
+        
+        <div class="app-content">
+            <button class="button btn-open">Открыть шлагбаум</button>
+            <button class="button btn-change">Изменить местоположение шлагбаума</button>
+            
+            <div class="info-text">
+                При нажатии на "Открыть шлагбаум"<br>
+                приложение проверит ваше местоположение<br>
+                и, если вы рядом, откроет шлагбаум
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin-left: 40px; color: white; max-width: 400px;">
+        <h2>Как это выглядит:</h2>
+        <ul style="margin-top: 20px; line-height: 1.8;">
+            <li><strong>Зеленая кнопка</strong> — открывает шлагбаум (проверяет геолокацию)</li>
+            <li><strong>Синяя кнопка</strong> — позволяет выбрать местоположение шлагбаума на карте</li>
+            <li>Приложение работает в фоновом режиме, запрашивая разрешения на геолокацию и звонки</li>
+        </ul>
+    </div>
+</body>
+</html>

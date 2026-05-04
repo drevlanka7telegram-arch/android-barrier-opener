@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="Основные настройки">
+        <EditTextPreference
+            app:key="phone_number"
+            app:title="Номер телефона шлагбаума"
+            app:useSimpleSummaryProvider="true"
+            app:dialogTitle="Введите номер телефона"
+            app:dialogMessage="Номер для звонка (например, 89114086713)" />
+        
+        <EditTextPreference
+            app:key="ussd_code"
+            app:title="USSD-код"
+            app:useSimpleSummaryProvider="true"
+            app:dialogTitle="Введите USSD-код"
+            app:dialogMessage="Код для открытия (например, *123#)" />
+        
+        <EditTextPreference
+            app:key="default_radius"
+            app:title="Радиус действия (метры)"
+            app:useSimpleSummaryProvider="true"
+            app:dialogTitle="Введите радиус"
+            app:dialogMessage="Радиус в метрах (по умолчанию 100)" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Местоположение">
+        <Preference
+            app:key="current_location"
+            app:title="Текущие координаты"
+            app:summary="Широта: 61.7876, Долгота: 34.356" />
+        <Preference
+            app:key="reset_location"
+            app:title="Сбросить координаты"
+            app:summary="Установить координаты по умолчанию" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="История">
+        <Preference
+            app:key="clear_history"
+            app:title="Очистить историю открытий"
+            app:summary="Удалить всю сохраненную историю" />
+        <Preference
+            app:key="history_count"
+            app:title="Количество записей"
+            app:summary="0" />
+    </PreferenceCategory>
+
+</PreferenceScreen>
