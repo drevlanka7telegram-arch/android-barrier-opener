@@ -26,11 +26,4 @@
         android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:padding="24dp"/>
-
-    <com.google.android.gms.maps.MapView
-        android:id="@+id/map_view"
-        android:layout_width="match_parent"
-        android:layout_height="300dp"
-        android:visibility="gone"
-        android:layout_marginTop="16dp"/>
 </LinearLayout>

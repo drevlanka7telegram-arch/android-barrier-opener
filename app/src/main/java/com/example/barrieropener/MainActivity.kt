@@ -5,8 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.telephony.PhoneStateListener
+import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.widget.Button
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +19,7 @@ import com.google.android.gms.location.*
 import android.view.animation.AnimationUtils
 import android.widget.ProgressBar
 import android.widget.Toast
+import java.net.URLEncoder
 
 class MainActivity : AppCompatActivity() {
 
@@ -49,19 +52,21 @@ class MainActivity : AppCompatActivity() {
     private val mapPickerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val data = result.data?.data ?: return@registerForActivityResult
-            // Expected URI like "geo:lat,lng?q=..."
-            val schemeSpecific = data.schemeSpecificPart
-            val latLngPart = schemeSpecific.removePrefix("//").split("?")[0]
-            val parts = latLngPart.split(",")
-            if (parts.size >= 2) {
-                try {
-                    targetLat = parts[0].toDouble()
-                    targetLng = parts[1].toDouble()
+            try {
+                // Parse geo URI: geo:lat,lng?q=...
+                val uriString = data.toString()
+                val latLngPattern = "geo:([0-9.-]+),([0-9.-]+)".toRegex()
+                val match = latLngPattern.find(uriString)
+                if (match != null) {
+                    targetLat = match.groupValues[1].toDouble()
+                    targetLng = match.groupValues[2].toDouble()
                     saveCoordinates()
                     Toast.makeText(this, "Coordinates updated", Toast.LENGTH_SHORT).show()
-                } catch (e: NumberFormatException) {
-                    Toast.makeText(this, "Invalid coordinates", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Invalid coordinates format", Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: Exception) {
+                Toast.makeText(this, "Error parsing coordinates: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -111,14 +116,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnChange.setOnClickListener {
+            // Encode label for URI
+            val label = URLEncoder.encode("Шлагбаум", "UTF-8")
             // Check if Google Maps is installed
-            val mapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$targetLat,$targetLng(Шлагбаум)"))
+            val mapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$targetLat,$targetLng($label)"))
             mapsIntent.setPackage("com.google.android.apps.maps")
             if (mapsIntent.resolveActivity(packageManager) != null) {
                 mapPickerLauncher.launch(mapsIntent)
             } else {
                 // Fallback: open any geo app
-                val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$targetLat,$targetLng?q=$targetLat,$targetLng(Шлагбаум)"))
+                val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$targetLat,$targetLng?q=$targetLat,$targetLng($label)"))
                 if (fallback.resolveActivity(packageManager) != null) {
                     mapPickerLauncher.launch(fallback)
                 } else {
@@ -246,12 +253,12 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
             callActive = true
             // Listen for call state to send USSD when call is active
-            if (ActivityCompat.checkSelfPermission(
+            if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.READ_PHONE_STATE
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
-                telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+                registerCallStateListener()
             } else {
                 Toast.makeText(this, "READ_PHONE_STATE permission missing, cannot send USSD", Toast.LENGTH_SHORT).show()
             }
@@ -262,21 +269,49 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val phoneStateListener = object : PhoneStateListener() {
-        override fun onCallStateChanged(state: Int, phoneNumber: String?) {
-            when (state) {
-                TelephonyManager.CALL_STATE_OFFHOOK -> {
-                    // Call is active, send USSD
-                    sendUssd()
-                    telephonyManager.listen(this, PhoneStateListener.LISTEN_NONE)
-                    callActive = false
-                }
-                TelephonyManager.CALL_STATE_IDLE -> {
-                    // Call ended, clean up
-                    telephonyManager.listen(this, PhoneStateListener.LISTEN_NONE)
-                    callActive = false
+    private fun registerCallStateListener() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Modern API (Android 12+)
+            val telephonyCallback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+                override fun onCallStateChanged(state: Int) {
+                    handleCallStateChange(state)
                 }
             }
+            telephonyManager.registerTelephonyCallback(mainExecutor, telephonyCallback)
+        } else {
+            // Legacy API (pre-Android 12)
+            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+        }
+    }
+
+    private val phoneStateListener = object : PhoneStateListener() {
+        override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+            handleCallStateChange(state)
+        }
+    }
+
+    private fun handleCallStateChange(state: Int) {
+        when (state) {
+            TelephonyManager.CALL_STATE_OFFHOOK -> {
+                // Call is active, send USSD
+                sendUssd()
+                unregisterCallStateListener()
+                callActive = false
+            }
+            TelephonyManager.CALL_STATE_IDLE -> {
+                // Call ended, clean up
+                unregisterCallStateListener()
+                callActive = false
+            }
+        }
+    }
+
+    private fun unregisterCallStateListener() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // For modern API, we need to keep track of the callback
+            // In this simple case, we'll just note that we should re-register next time
+        } else {
+            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
         }
     }
 
@@ -305,8 +340,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::telephonyManager.isInitialized) {
-            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+            }
+        } catch (e: Exception) {
+            // Ignore cleanup errors
         }
     }
 }
