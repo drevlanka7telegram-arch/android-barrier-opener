@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barrier Opener - Новый дизайн</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Roboto', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .phone-container {
+            width: 360px;
+            height: 720px;
+            background: #f5f5f5;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            position: relative;
+            border: 8px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .status-bar {
+            height: 24px;
+            background: #4CAF50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .app-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .app-title {
+            text-align: center;
+            color: #212121;
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .card-title {
+            font-size: 14px;
+            color: #757575;
+            font-weight: 500;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        
+        .status-text {
+            font-size: 18px;
+            color: #2196F3;
+            font-weight: 500;
+        }
+        
+        .last-opened {
+            font-size: 12px;
+            color: #9E9E9E;
+            margin-top: 4px;
+        }
+        
+        .button {
+            width: 100%;
+            padding: 20px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 24px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        
+        .btn-open {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #2196F3;
+            border: 2px solid #2196F3;
+            font-size: 18px;
+            padding: 16px;
+        }
+        
+        .btn-text {
+            background: transparent;
+            color: #2196F3;
+            box-shadow: none;
+            font-size: 16px;
+            padding: 12px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .info-label {
+            color: #757575;
+        }
+        
+        .info-value {
+            color: #212121;
+            font-weight: 500;
+        }
+        
+        .icon {
+            font-size: 24px;
+        }
+        
+        .description {
+            margin-left: 40px;
+            color: white;
+            max-width: 400px;
+        }
+        
+        .description h2 {
+            margin-bottom: 20px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            line-height: 1.8;
+        }
+        
+        .feature-list li:before {
+            content: "✓ ";
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .container {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="phone-container">
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>🔋 100%</span>
+            </div>
+            
+            <div class="app-content">
+                <div class="app-title">Barrier Opener</div>
+                
+                <!-- Status Card -->
+                <div class="card">
+                    <div class="card-title">СТАТУС</div>
+                    <div class="status-text">Готов к работе</div>
+                    <div class="last-opened">Последнее открытие: 04.05.2026 14:30</div>
+                </div>
+                
+                <!-- Main Button -->
+                <button class="button btn-open">
+                    <span class="icon">⚡</span>
+                    Открыть шлагбаум
+                </button>
+                
+                <!-- Secondary Button -->
+                <button class="button btn-secondary">
+                    <span class="icon">📍</span>
+                    Изменить местоположение
+                </button>
+                
+                <!-- Info Card -->
+                <div class="card">
+                    <div class="card-title">ИНФОРМАЦИЯ</div>
+                    <div class="info-row">
+                        <span class="info-label">До шлагбаума:</span>
+                        <span class="info-value">45 м</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Радиус действия:</span>
+                        <span class="info-value">100 м</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Координаты:</span>
+                        <span class="info-value">61.7876, 34.356</span>
+                    </div>
+                </div>
+                
+                <!-- Settings Button -->
+                <button class="button btn-text">
+                    <span class="icon">⚙️</span>
+                    Настройки
+                </button>
+            </div>
+        </div>
+        
+        <div class="description">
+            <h2>Что улучшено:</h2>
+            <ul class="feature-list">
+                <li>Современный дизайн Material Design 3</li>
+                <li>Индикация статуса (готов, проверка, открытие)</li>
+                <li>Экран настроек (номер, USSD, радиус)</li>
+                <li>История открытий (последние 10)</li>
+                <li>Отображение расстояния до шлагбаума</li>
+                <li>Кнопки с иконками и анимацией</li>
+                <li>Поддержка Android 12+ (TelephonyCallback)</li>
+                <li>Улучшенная обработка ошибок</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

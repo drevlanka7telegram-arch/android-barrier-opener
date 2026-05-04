@@ -88,11 +88,11 @@ class MainActivity : AppCompatActivity() {
 
         // Load saved coordinates or defaults
         if (prefs.contains("lat") && prefs.contains("lng")) {
-            targetLat = prefs.getFloat("lat", 61.7876f).toDouble()
-            targetLng = prefs.getFloat("lng", 34.356f).toDouble()
+            targetLat = prefs.getFloat("lat", 61.748333f).toDouble()
+            targetLng = prefs.getFloat("lng", 34.312777f).toDouble()
         } else {
-            targetLat = 61.7876
-            targetLng = 34.356
+            targetLat = 61.748333
+            targetLng = 34.312777
         }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -143,11 +143,25 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
+        // Check if auto-open triggered from geofence
+        if (intent.getBooleanExtra("auto_open", false)) {
+            updateStatus("Авто-открытие по геозоне...")
+            if (checkPermissions()) startLocationCheck() else requestPermissions()
+        }
+
         // Auto-check permissions on start
         if (checkPermissions()) {
             updateStatus("Готов к работе")
         } else {
             requestPermissions()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if (intent?.getBooleanExtra("auto_open", false) == true) {
+            updateStatus("Авто-открытие по геозоне...")
+            if (checkPermissions()) startLocationCheck() else requestPermissions()
         }
     }
 
@@ -157,6 +171,15 @@ class MainActivity : AppCompatActivity() {
         reloadSettings()
         updateDistanceText()
         updateLastOpenedText()
+        
+        // If background mode is enabled, ensure geofence is active
+        val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val backgroundMode = defaultPrefs.getBoolean("background_mode", false)
+        if (backgroundMode) {
+            val helper = GeofenceHelper(this)
+            val radius = radiusMeters.toFloat()
+            helper.addGeofence(targetLat, targetLng, radius)
+        }
     }
 
     private fun reloadSettings() {

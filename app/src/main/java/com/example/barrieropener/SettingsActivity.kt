@@ -1,7 +1,13 @@
 package com.example.barrieropener
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.preference.*
 
 class SettingsActivity : AppCompatActivity() {
@@ -17,8 +23,23 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     class SettingsFragment : PreferenceFragmentCompat() {
+
+        private lateinit var geofenceHelper: GeofenceHelper
+        private val backgroundLocationLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            if (isGranted) {
+                addGeofence()
+            } else {
+                findPreference<SwitchPreference>("background_mode")?.isChecked = false
+                Toast.makeText(requireContext(), "Требуется разрешение на фоновую геолокацию", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.preferences, rootKey)
+
+            geofenceHelper = GeofenceHelper(requireContext())
 
             // Load current values from SharedPreferences (or defaults from resources)
             val prefs = preferenceManager.sharedPreferences
@@ -60,18 +81,22 @@ class SettingsActivity : AppCompatActivity() {
             // Current location display
             val locationPref = findPreference<Preference>("current_location")
             val mainPrefs = context.getSharedPreferences("barrier", Context.MODE_PRIVATE)
-            val lat = mainPrefs.getFloat("lat", 61.7876f)
-            val lng = mainPrefs.getFloat("lng", 34.356f)
+            val lat = mainPrefs.getFloat("lat", 61.748333f)
+            val lng = mainPrefs.getFloat("lng", 34.312777f)
             locationPref?.summary = "Широта: $lat, Долгота: $lng"
 
             // Reset location
             findPreference<Preference>("reset_location")?.setOnPreferenceClickListener {
                 mainPrefs.edit()
-                    .putFloat("lat", 61.7876f)
-                    .putFloat("lng", 34.356f)
+                    .putFloat("lat", 61.748333f)
+                    .putFloat("lng", 34.312777f)
                     .apply()
-                locationPref?.summary = "Широта: 61.7876, Долгота: 34.356"
+                locationPref?.summary = "Широта: 61.748333, Долгота: 34.312777"
                 Toast.makeText(context, "Координаты сброшены", Toast.LENGTH_SHORT).show()
+                // Update geofence if background mode is on
+                if (prefs?.getBoolean("background_mode", false) == true) {
+                    addGeofence()
+                }
                 true
             }
 
@@ -88,6 +113,66 @@ class SettingsActivity : AppCompatActivity() {
                 Toast.makeText(context, "История очищена", Toast.LENGTH_SHORT).show()
                 true
             }
+
+            // Background mode switch
+            val backgroundModePref = findPreference<SwitchPreference>("background_mode")
+            val isBackgroundMode = prefs?.getBoolean("background_mode", false) ?: false
+            backgroundModePref?.isChecked = isBackgroundMode
+            updateGeofenceStatus(isBackgroundMode)
+            backgroundModePref?.setOnPreferenceChangeListener { _, newValue ->
+                val enabled = newValue as Boolean
+                prefs?.edit()?.putBoolean("background_mode", enabled)?.apply()
+                if (enabled) {
+                    // Check permissions and add geofence
+                    if (hasBackgroundLocationPermission()) {
+                        addGeofence()
+                    } else {
+                        // Request permission
+                        requestBackgroundLocationPermission()
+                        // We'll add geofence after permission granted
+                    }
+                } else {
+                    removeGeofence()
+                }
+                true
+            }
+        }
+
+        private fun hasBackgroundLocationPermission(): Boolean {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true // below Q, fine location is enough
+            }
+        }
+
+        private fun requestBackgroundLocationPermission() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+        }
+
+        private fun addGeofence() {
+            val mainPrefs = requireContext().getSharedPreferences("barrier", Context.MODE_PRIVATE)
+            val lat = mainPrefs.getFloat("lat", 61.748333f).toDouble()
+            val lng = mainPrefs.getFloat("lng", 34.312777f).toDouble()
+            val radius = prefs?.getString("default_radius", "100")?.toFloatOrNull() ?: 100f
+            geofenceHelper.addGeofence(lat, lng, radius)
+            updateGeofenceStatus(true)
+            Toast.makeText(requireContext(), "Геозона активирована", Toast.LENGTH_SHORT).show()
+        }
+
+        private fun removeGeofence() {
+            geofenceHelper.removeGeofence()
+            updateGeofenceStatus(false)
+            Toast.makeText(requireContext(), "Геозона деактивирована", Toast.LENGTH_SHORT).show()
+        }
+
+        private fun updateGeofenceStatus(active: Boolean) {
+            findPreference<Preference>("geofence_status")?.summary = if (active) "Активна" else "Не активна"
         }
     }
 }

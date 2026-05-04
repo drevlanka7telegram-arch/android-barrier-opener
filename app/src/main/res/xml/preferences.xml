@@ -24,6 +24,18 @@
             app:dialogMessage="Радиус в метрах (по умолчанию 100)" />
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="Фоновый режим">
+        <SwitchPreference
+            app:key="background_mode"
+            app:title="Автоматическое открытие"
+            app:summary="Открывать шлагбаум при въезде в геозону"
+            app:defaultValue="false" />
+        <Preference
+            app:key="geofence_status"
+            app:title="Статус геозоны"
+            app:summary="Не активна" />
+    </PreferenceCategory>
+
     <PreferenceCategory app:title="Местоположение">
         <Preference
             app:key="current_location"
