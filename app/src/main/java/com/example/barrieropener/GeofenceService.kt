@@ -25,10 +25,10 @@ class GeofenceService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.i(TAG, "Service started")
-        // Start the activity to open barrier
+        Log.i(TAG, "Service started - triggering barrier open")
+        // Start the activity to open barrier, ensure it comes to foreground
         val openIntent = Intent(this, MainActivity::class.java)
-        openIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        openIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         openIntent.putExtra("auto_open", true)
         startActivity(openIntent)
         // Stop service after task

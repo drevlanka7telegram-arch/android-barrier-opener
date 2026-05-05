@@ -40,7 +40,7 @@
         <Preference
             app:key="current_location"
             app:title="Текущие координаты"
-            app:summary="Широта: 61.7876, Долгота: 34.356" />
+            app:summary="Широта: 61.748333, Долгота: 34.312777" />
         <Preference
             app:key="reset_location"
             app:title="Сбросить координаты"
