@@ -396,6 +396,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var currentTelephonyCallback: Any? = null // Для хранения ссылки на callback (Android 12+)
+    
     private fun registerCallStateListener() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Modern API (Android 12+)
@@ -405,6 +407,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             telephonyManager.registerTelephonyCallback(mainExecutor, telephonyCallback)
+            currentTelephonyCallback = telephonyCallback // Сохраняем ссылку для последующей отмены
         } else {
             // Legacy API (pre-Android 12)
             telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
@@ -441,9 +444,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun unregisterCallStateListener() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // For modern API, we need to keep track of the callback
-            // In this simple case, we'll just note that we should re-register next time
+            // For modern API, unregister the callback we stored
+            currentTelephonyCallback?.let { callback ->
+                try {
+                    telephonyManager.unregisterTelephonyCallback(callback as TelephonyCallback)
+                    currentTelephonyCallback = null
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error unregistering TelephonyCallback: ${e.message}")
+                }
+            }
         } else {
+            // Legacy API
             telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
         }
     }
