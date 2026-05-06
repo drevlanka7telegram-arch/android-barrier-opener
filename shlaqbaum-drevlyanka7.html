@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ШлагбаумДревлянка7</title>
+    <style>
+        body {
+            background: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Roboto', 'Segoe UI', sans-serif;
+        }
+        .phone {
+            width: 360px;
+            height: 640px;
+            background: #121212;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .status-bar {
+            height: 24px;
+            background: #000;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 16px;
+            align-items: center;
+            color: #fff;
+            font-size: 12px;
+        }
+        .app-screen {
+            flex:1;
+            padding: 20px;
+            color: #fff;
+            overflow-y: auto;
+        }
+        .app-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .app-header h1 {
+            font-size: 22px;
+            margin: 0;
+            color: #bb86fc;
+        }
+        .app-header p {
+            font-size: 12px;
+            color: #888;
+            margin: 4px 0 0;
+        }
+        .card {
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid #333;
+        }
+        .card h3 {
+            font-size: 12px;
+            color: #888;
+            margin: 0 0 10px;
+            text-transform: uppercase;
+        }
+        .coord-box {
+            background: #000;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #03dac6;
+            text-align: center;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .status-label { color: #aaa; font-size: 14px; }
+        .status-value { font-weight: bold; }
+        .active { color: #00e676; }
+        .inactive { color: #ff5252; }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background: #bb86fc; color: #000; }
+        .btn-secondary { background: #03dac6; color: #000; }
+        .btn-outline { background: transparent; border: 1px solid #555; color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="phone">
+        <div class="status-bar">
+            <span>9:41</span>
+            <span>🔋 100%</span>
+        </div>
+        <div class="app-screen">
+            <div class="app-header">
+                <h1>🚗 ШлагбаумДревлянка7</h1>
+                <p>Авто-открытие шлагбаума</p>
+            </div>
+
+            <div class="card">
+                <h3>ГЕОЗОНА</h3>
+                <div class="status-row">
+                    <span class="status-label">Статус</span>
+                    <span class="status-value active">● Активна</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Радиус</span>
+                    <span class="status-value" style="color:#fff;">100 м</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>КООРДИНАТЫ</h3>
+                <div class="coord-box">
+                    61.7513049<br>
+                    34.3089593
+                </div>
+                <p style="font-size:11px; color:#666; margin-top:8px; text-align:center;">
+                    проезд Вьюжный, 10
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>ВЫЗОВ</h3>
+                <div class="status-row">
+                    <span class="status-label">SIM-карта</span>
+                    <span class="status-value active">Готова</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="alert('Вызов шлагбаума...')">
+                📞 Открыть шлагбаум
+            </button>
+            
+            <button class="btn btn-secondary" onclick="alert('Тест геозоны: Вы в зоне!')">
+                📍 Тест геозоны
+            </button>
+
+            <button class="btn btn-outline" onclick="alert('Настройки приложения')">
+                ⚙️ Настройки
+            </button>
+        </div>
+    </div>
+</body>
+</html>
