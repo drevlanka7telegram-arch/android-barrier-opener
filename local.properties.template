@@ -1,0 +1,5 @@
+# Location of the Android SDK
+sdk.dir=C:\\Users\\YourUser\\AppData\\Local\\Android\\sdk
+# For Mac/Linux:
+# sdk.dir=/Users/YourUser/Library/Android/sdk
+# sdk.dir=/home/YourUser/Android/Sdk
