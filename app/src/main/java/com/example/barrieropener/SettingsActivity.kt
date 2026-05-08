@@ -25,6 +25,7 @@ class SettingsActivity : AppCompatActivity() {
 
     class SettingsFragment : PreferenceFragmentCompat() {
 
+        private lateinit var prefs: android.content.SharedPreferences
         private lateinit var geofenceHelper: GeofenceHelper
         private val backgroundLocationLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -43,7 +44,11 @@ class SettingsActivity : AppCompatActivity() {
             geofenceHelper = GeofenceHelper(requireContext())
 
             // Load current values from SharedPreferences (or defaults from resources)
+<<<<<<< HEAD
             val prefs = preferenceManager.sharedPreferences!!
+=======
+            prefs = preferenceManager.sharedPreferences
+>>>>>>> 2604feb868225bc16f3f6018fae5810d61076700
             val context = requireContext()
 
             // Phone number
