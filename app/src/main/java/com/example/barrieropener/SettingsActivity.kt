@@ -43,7 +43,7 @@ class SettingsActivity : AppCompatActivity() {
             geofenceHelper = GeofenceHelper(requireContext())
 
             // Load current values from SharedPreferences (or defaults from resources)
-            val prefs = preferenceManager.sharedPreferences
+            val prefs = preferenceManager.sharedPreferences!!
             val context = requireContext()
 
             // Phone number
