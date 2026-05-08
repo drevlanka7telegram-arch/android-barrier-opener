@@ -22,8 +22,11 @@ import com.google.android.material.button.MaterialButton
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.*
+import android.telephony.PhoneStateListener
+import android.util.Log
 
 class MainActivity : AppCompatActivity() {
+    private val TAG = "MainActivity"
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var telephonyManager: TelephonyManager
