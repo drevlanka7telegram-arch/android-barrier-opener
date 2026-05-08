@@ -2,14 +2,15 @@ package com.example.barrieropener
 
 import android.Manifest
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.preference.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.preference.*
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -25,7 +26,7 @@ class SettingsActivity : AppCompatActivity() {
 
     class SettingsFragment : PreferenceFragmentCompat() {
 
-        private lateinit var prefs: android.content.SharedPreferences
+        private lateinit var prefs: SharedPreferences
         private lateinit var geofenceHelper: GeofenceHelper
         private val backgroundLocationLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -44,42 +45,38 @@ class SettingsActivity : AppCompatActivity() {
             geofenceHelper = GeofenceHelper(requireContext())
 
             // Load current values from SharedPreferences (or defaults from resources)
-<<<<<<< HEAD
-            val prefs = preferenceManager.sharedPreferences!!
-=======
-            prefs = preferenceManager.sharedPreferences
->>>>>>> 2604feb868225bc16f3f6018fae5810d61076700
+            prefs = preferenceManager.sharedPreferences!!
             val context = requireContext()
 
             // Phone number
             val phonePref = findPreference<EditTextPreference>("phone_number")
-            val currentPhone = prefs?.getString("phone_number", context.getString(R.string.phone_number)) ?: ""
+            val currentPhone = prefs.getString("phone_number", context.getString(R.string.phone_number)) ?: ""
             phonePref?.text = currentPhone
             phonePref?.summary = if (currentPhone.isEmpty()) "Не задано" else currentPhone
             phonePref?.setOnPreferenceChangeListener { _, newValue ->
-                prefs?.edit()?.putString("phone_number", newValue as String)?.apply()
+                prefs.edit().putString("phone_number", newValue as String).apply()
                 phonePref.summary = newValue as String
                 true
             }
 
             // USSD code
             val ussdPref = findPreference<EditTextPreference>("ussd_code")
-            val currentUssd = prefs?.getString("ussd_code", context.getString(R.string.ussd_code)) ?: ""
+            val currentUssd = prefs.getString("ussd_code", context.getString(R.string.ussd_code)) ?: ""
             ussdPref?.text = currentUssd
             ussdPref?.summary = if (currentUssd.isEmpty()) "Не задано" else currentUssd
             ussdPref?.setOnPreferenceChangeListener { _, newValue ->
-                prefs?.edit()?.putString("ussd_code", newValue as String)?.apply()
+                prefs.edit().putString("ussd_code", newValue as String).apply()
                 ussdPref.summary = newValue as String
                 true
             }
 
             // Radius
             val radiusPref = findPreference<EditTextPreference>("default_radius")
-            val currentRadius = prefs?.getString("default_radius", context.getString(R.string.default_radius)) ?: "100"
+            val currentRadius = prefs.getString("default_radius", context.getString(R.string.default_radius)) ?: "100"
             radiusPref?.text = currentRadius
             radiusPref?.summary = "$currentRadius м"
             radiusPref?.setOnPreferenceChangeListener { _, newValue ->
-                prefs?.edit()?.putString("default_radius", newValue as String)?.apply()
+                prefs.edit().putString("default_radius", newValue as String).apply()
                 radiusPref.summary = "$newValue м"
                 true
             }
@@ -100,7 +97,7 @@ class SettingsActivity : AppCompatActivity() {
                 locationPref?.summary = "Широта: 61.748333, Долгота: 34.312777"
                 Toast.makeText(context, "Координаты сброшены", Toast.LENGTH_SHORT).show()
                 // Update geofence if background mode is on
-                if (prefs?.getBoolean("background_mode", false) == true) {
+                if (prefs.getBoolean("background_mode", false)) {
                     addGeofence()
                 }
                 true
@@ -122,12 +119,12 @@ class SettingsActivity : AppCompatActivity() {
 
             // Background mode switch
             val backgroundModePref = findPreference<SwitchPreference>("background_mode")
-            val isBackgroundMode = prefs?.getBoolean("background_mode", false) ?: false
+            val isBackgroundMode = prefs.getBoolean("background_mode", false)
             backgroundModePref?.isChecked = isBackgroundMode
             updateGeofenceStatus(isBackgroundMode)
             backgroundModePref?.setOnPreferenceChangeListener { _, newValue ->
                 val enabled = newValue as Boolean
-                prefs?.edit()?.putBoolean("background_mode", enabled)?.apply()
+                prefs.edit().putBoolean("background_mode", enabled).apply()
                 if (enabled) {
                     // Check permissions and add geofence
                     if (hasBackgroundLocationPermission()) {
@@ -165,7 +162,7 @@ class SettingsActivity : AppCompatActivity() {
             val mainPrefs = requireContext().getSharedPreferences("barrier", Context.MODE_PRIVATE)
             val lat = mainPrefs.getFloat("lat", 61.748333f).toDouble()
             val lng = mainPrefs.getFloat("lng", 34.312777f).toDouble()
-            val radius = prefs?.getString("default_radius", "100")?.toFloatOrNull() ?: 100f
+            val radius = prefs.getString("default_radius", "100")?.toFloatOrNull() ?: 100f
             geofenceHelper.addGeofence(lat, lng, radius)
             updateGeofenceStatus(true)
             Toast.makeText(requireContext(), "Геозона активирована", Toast.LENGTH_SHORT).show()
