@@ -64,9 +64,10 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val data = result.data?.data ?: return@registerForActivityResult
             try {
-                // Parse geo URI: geo:lat,lng?q=...
+                // Parse geo URI: geo:lat,lng?q=... or geo:lat,lng?z=...
                 val uriString = data.toString()
-                val latLngPattern = "geo:([0-9.-]+),([0-9.-]+)".toRegex()
+                // Match geo: followed by lat,lng (including negatives and decimals)
+                val latLngPattern = "geo:([+-]?[0-9]+\\.?[0-9]*),([+-]?[0-9]+\\.?[0-9]*)".toRegex()
                 val match = latLngPattern.find(uriString)
                 if (match != null) {
                     targetLat = match.groupValues[1].toDouble()
@@ -91,11 +92,11 @@ class MainActivity : AppCompatActivity() {
 
         // Load saved coordinates or defaults
         if (prefs.contains("lat") && prefs.contains("lng")) {
-            targetLat = prefs.getFloat("lat", 61.748333f).toDouble()
-            targetLng = prefs.getFloat("lng", 34.312777f).toDouble()
+            targetLat = prefs.getFloat("lat", 61.7513049f).toDouble()
+            targetLng = prefs.getFloat("lng", 34.3089593f).toDouble()
         } else {
-            targetLat = 61.748333
-            targetLng = 34.312777
+            targetLat = 61.7513049
+            targetLng = 34.3089593
         }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)

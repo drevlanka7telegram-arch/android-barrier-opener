@@ -91,10 +91,10 @@ class SettingsActivity : AppCompatActivity() {
             // Reset location
             findPreference<Preference>("reset_location")?.setOnPreferenceClickListener {
                 mainPrefs.edit()
-                    .putFloat("lat", 61.748333f)
-                    .putFloat("lng", 34.312777f)
+                    .putFloat("lat", 61.7513049f)
+                    .putFloat("lng", 34.3089593f)
                     .apply()
-                locationPref?.summary = "Широта: 61.748333, Долгота: 34.312777"
+                locationPref?.summary = "Широта: 61.7513049, Долгота: 34.3089593"
                 Toast.makeText(context, "Координаты сброшены", Toast.LENGTH_SHORT).show()
                 // Update geofence if background mode is on
                 if (prefs.getBoolean("background_mode", false)) {
@@ -160,8 +160,8 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun addGeofence() {
             val mainPrefs = requireContext().getSharedPreferences("barrier", Context.MODE_PRIVATE)
-            val lat = mainPrefs.getFloat("lat", 61.748333f).toDouble()
-            val lng = mainPrefs.getFloat("lng", 34.312777f).toDouble()
+            val lat = mainPrefs.getFloat("lat", 61.7513049f).toDouble()
+            val lng = mainPrefs.getFloat("lng", 34.3089593f).toDouble()
             val radius = prefs.getString("default_radius", "100")?.toFloatOrNull() ?: 100f
             geofenceHelper.addGeofence(lat, lng, radius)
             updateGeofenceStatus(true)
