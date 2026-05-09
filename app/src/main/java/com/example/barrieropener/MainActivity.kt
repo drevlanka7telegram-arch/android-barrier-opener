@@ -24,6 +24,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.telephony.PhoneStateListener
 import android.util.Log
+import android.os.Looper
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
@@ -60,28 +61,8 @@ class MainActivity : AppCompatActivity() {
             else Toast.makeText(this, "Permissions required", Toast.LENGTH_SHORT).show()
         }
 
-    private val mapPickerLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val data = result.data?.data ?: return@registerForActivityResult
-            try {
-                // Parse geo URI: geo:lat,lng?q=... or geo:lat,lng?z=...
-                val uriString = data.toString()
-                // Match geo: followed by lat,lng (including negatives and decimals)
-                val latLngPattern = "geo:([+-]?[0-9]+\\.?[0-9]*),([+-]?[0-9]+\\.?[0-9]*)".toRegex()
-                val match = latLngPattern.find(uriString)
-                if (match != null) {
-                    targetLat = match.groupValues[1].toDouble()
-                    targetLng = match.groupValues[2].toDouble()
-                    saveCoordinates()
-                    updateStatus("Местоположение обновлено")
-                    Toast.makeText(this, "Coordinates updated", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Invalid coordinates format", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(this, "Error parsing coordinates: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
+    // No registerForActivityResult for map — Google Maps doesn't return coordinates
+    // via startActivityforResult in modern versions. Map opens for viewing only.
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,21 +106,24 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnChange.setOnClickListener {
-            // Encode label for URI
+            // Open Google Maps at the barrier location for viewing
             val label = URLEncoder.encode("Шлагбаум", "UTF-8")
-            // Check if Google Maps is installed
             val mapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$targetLat,$targetLng($label)"))
             mapsIntent.setPackage("com.google.android.apps.maps")
-            if (mapsIntent.resolveActivity(packageManager) != null) {
-                mapPickerLauncher.launch(mapsIntent)
-            } else {
-                // Fallback: open any geo app
-                val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$targetLat,$targetLng?q=$targetLat,$targetLng($label)"))
-                if (fallback.resolveActivity(packageManager) != null) {
-                    mapPickerLauncher.launch(fallback)
+            try {
+                if (mapsIntent.resolveActivity(packageManager) != null) {
+                    startActivity(mapsIntent)
                 } else {
-                    Toast.makeText(this, "No maps application found", Toast.LENGTH_SHORT).show()
+                    // Fallback: open any geo app
+                    val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$targetLat,$targetLng?q=$targetLat,$targetLng($label)"))
+                    if (fallback.resolveActivity(packageManager) != null) {
+                        startActivity(fallback)
+                    } else {
+                        Toast.makeText(this, "No maps application found", Toast.LENGTH_SHORT).show()
+                    }
                 }
+            } catch (e: Exception) {
+                Toast.makeText(this, "Cannot open maps: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -307,10 +291,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestFreshLocation() {
-        val request = LocationRequest.create().apply {
-            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-            numUpdates = 1
-        }
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
+            .setMaxUpdates(1)
+            .build()
         if (ActivityCompat.checkSelfPermission(
                 this,
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -336,7 +319,7 @@ class MainActivity : AppCompatActivity() {
                     fusedLocationClient.removeLocationUpdates(this)
                 }
             },
-            mainLooper
+            Looper.getMainLooper()
         )
     }
 
