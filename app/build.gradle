@@ -12,7 +12,7 @@ android {
         jvmTarget = '17'
     }
     namespace 'com.example.barrieropener'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.example.barrieropener"
