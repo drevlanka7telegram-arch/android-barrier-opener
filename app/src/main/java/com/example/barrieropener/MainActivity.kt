@@ -8,8 +8,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
+import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,14 +19,17 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceManager
-import com.google.android.gms.location.*
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.material.button.MaterialButton
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
-import java.util.*
-import android.telephony.PhoneStateListener
-import android.util.Log
-import android.os.Looper
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
@@ -37,6 +42,9 @@ class MainActivity : AppCompatActivity() {
     private val historyPrefs by lazy {
         getSharedPreferences("barrier_history", Context.MODE_PRIVATE)
     }
+
+    // Executor for TelephonyCallback (Android 12+)
+    private val mainExecutor by lazy { ContextCompat.getMainExecutor(this) }
 
     // Load from resources or saved prefs
     private var targetLat: Double = 0.0
@@ -54,15 +62,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvDistance: TextView
     private var callActive = false
 
+    // Modern telephony callback reference for unregistering
+    private var telephonyCallbackRef: TelephonyCallback? = null
+
     // Permission launchers
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
             if (perms.values.all { it }) startLocationCheck()
-            else Toast.makeText(this, "Permissions required", Toast.LENGTH_SHORT).show()
+            else Toast.makeText(this, "Необходимы разрешения", Toast.LENGTH_SHORT).show()
         }
-
-    // No registerForActivityResult for map — Google Maps doesn't return coordinates
-    // via startActivityforResult in modern versions. Map opens for viewing only.
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,7 +105,7 @@ class MainActivity : AppCompatActivity() {
 
         btnOpen.setOnClickListener {
             if (callActive) {
-                Toast.makeText(this, "Call already in progress", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Звонок уже идёт", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             btnOpen.isEnabled = false
@@ -108,22 +116,28 @@ class MainActivity : AppCompatActivity() {
         btnChange.setOnClickListener {
             // Open Google Maps at the barrier location for viewing
             val label = URLEncoder.encode("Шлагбаум", "UTF-8")
-            val mapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$targetLat,$targetLng($label)"))
+            val mapsIntent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("geo:0,0?q=$targetLat,$targetLng($label)")
+            )
             mapsIntent.setPackage("com.google.android.apps.maps")
             try {
                 if (mapsIntent.resolveActivity(packageManager) != null) {
                     startActivity(mapsIntent)
                 } else {
                     // Fallback: open any geo app
-                    val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$targetLat,$targetLng?q=$targetLat,$targetLng($label)"))
+                    val fallback = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("geo:$targetLat,$targetLng?q=$targetLat,$targetLng($label)")
+                    )
                     if (fallback.resolveActivity(packageManager) != null) {
                         startActivity(fallback)
                     } else {
-                        Toast.makeText(this, "No maps application found", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Приложение карт не найдено", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
-                Toast.makeText(this, "Cannot open maps: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Ошибка открытия карт: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -159,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         reloadSettings()
         updateDistanceText()
         updateLastOpenedText()
-        
+
         val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this)
         val backgroundMode = defaultPrefs.getBoolean("background_mode", false)
         val helper = GeofenceHelper(this)
@@ -194,9 +208,12 @@ class MainActivity : AppCompatActivity() {
     private fun reloadSettings() {
         val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(this)
         // Load from default shared preferences (set via SettingsActivity) or fallback to resources
-        phoneNumber = defaultPrefs.getString("phone_number", getString(R.string.phone_number)) ?: getString(R.string.phone_number)
-        ussdCode = defaultPrefs.getString("ussd_code", getString(R.string.ussd_code)) ?: getString(R.string.ussd_code)
-        val radiusStr = defaultPrefs.getString("default_radius", getString(R.string.default_radius)) ?: getString(R.string.default_radius)
+        phoneNumber = defaultPrefs.getString("phone_number", getString(R.string.phone_number))
+            ?: getString(R.string.phone_number)
+        ussdCode = defaultPrefs.getString("ussd_code", getString(R.string.ussd_code))
+            ?: getString(R.string.ussd_code)
+        val radiusStr = defaultPrefs.getString("default_radius", getString(R.string.default_radius))
+            ?: getString(R.string.default_radius)
         radiusMeters = radiusStr.toDoubleOrNull() ?: 100.0
     }
 
@@ -207,7 +224,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateDistanceText() {
-        // This will be updated when we get location
         tvDistance.text = "Радиус действия: ${radiusMeters.toInt()} м"
     }
 
@@ -276,24 +292,30 @@ class MainActivity : AppCompatActivity() {
     private fun startLocationCheck() {
         updateStatus("Получение местоположения...")
         // First try last location
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location ->
-                if (location != null) {
-                    checkDistanceAndCall(location.latitude, location.longitude)
-                } else {
-                    // Request fresh location
+        try {
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        checkDistanceAndCall(location.latitude, location.longitude)
+                    } else {
+                        // Request fresh location
+                        requestFreshLocation()
+                    }
+                }
+                .addOnFailureListener {
                     requestFreshLocation()
                 }
-            }
-            .addOnFailureListener {
-                requestFreshLocation()
-            }
+        } catch (e: SecurityException) {
+            updateStatus("Ошибка разрешения геолокации")
+            btnOpen.isEnabled = true
+        }
     }
 
     private fun requestFreshLocation() {
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
             .setMaxUpdates(1)
             .build()
+
         if (ActivityCompat.checkSelfPermission(
                 this,
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -312,14 +334,14 @@ class MainActivity : AppCompatActivity() {
                         btnOpen.isEnabled = true
                         Toast.makeText(
                             this@MainActivity,
-                            "Unable to get location",
+                            "Не удалось определить местоположение",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
                     fusedLocationClient.removeLocationUpdates(this)
                 }
             },
-            Looper.getMainLooper()
+            android.os.Looper.getMainLooper()
         )
     }
 
@@ -340,7 +362,7 @@ class MainActivity : AppCompatActivity() {
             btnOpen.isEnabled = true
             Toast.makeText(
                 this,
-                "You are ${dist.toInt()} m away from barrier. Need to be within ${radiusMeters.toInt()} m.",
+                "Расстояние ${dist.toInt()} м. Нужно быть в радиусе ${radiusMeters.toInt()} м.",
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -352,7 +374,7 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.CALL_PHONE
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Toast.makeText(this, "CALL_PHONE permission not granted", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Нет разрешения на звонки", Toast.LENGTH_SHORT).show()
             btnOpen.isEnabled = true
             return
         }
@@ -371,37 +393,41 @@ class MainActivity : AppCompatActivity() {
             ) {
                 registerCallStateListener()
             } else {
-                Toast.makeText(this, "READ_PHONE_STATE permission missing, cannot send USSD", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Нет разрешения на чтение состояния звонка, USSD не будет отправлен",
+                    Toast.LENGTH_SHORT
+                ).show()
                 btnOpen.isEnabled = true
             }
         } catch (e: SecurityException) {
-            Toast.makeText(this, "Cannot make call: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Ошибка звонка: ${e.message}", Toast.LENGTH_SHORT).show()
             btnOpen.isEnabled = true
         } catch (e: Exception) {
-            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
             btnOpen.isEnabled = true
         }
     }
 
-    private var currentTelephonyCallback: Any? = null // Для хранения ссылки на callback (Android 12+)
-    
     private fun registerCallStateListener() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Modern API (Android 12+)
-            val telephonyCallback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+            val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
                 override fun onCallStateChanged(state: Int) {
                     handleCallStateChange(state)
                 }
             }
-            telephonyManager.registerTelephonyCallback(mainExecutor, telephonyCallback)
-            currentTelephonyCallback = telephonyCallback // Сохраняем ссылку для последующей отмены
+            telephonyManager.registerTelephonyCallback(mainExecutor, callback)
+            telephonyCallbackRef = callback
         } else {
             // Legacy API (pre-Android 12)
+            @Suppress("DEPRECATION")
             telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
         }
     }
 
-    private val phoneStateListener = object : android.telephony.PhoneStateListener() {
+    private val phoneStateListener = object : PhoneStateListener() {
+        @Deprecated("Deprecated in Java")
         override fun onCallStateChanged(state: Int, phoneNumber: String?) {
             handleCallStateChange(state)
         }
@@ -419,6 +445,7 @@ class MainActivity : AppCompatActivity() {
                 // Save to history
                 saveToHistory(targetLat, targetLng)
             }
+
             TelephonyManager.CALL_STATE_IDLE -> {
                 // Call ended, clean up
                 unregisterCallStateListener()
@@ -432,16 +459,17 @@ class MainActivity : AppCompatActivity() {
     private fun unregisterCallStateListener() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // For modern API, unregister the callback we stored
-            currentTelephonyCallback?.let { callback ->
+            telephonyCallbackRef?.let { callback ->
                 try {
                     telephonyManager.unregisterTelephonyCallback(callback as TelephonyCallback)
-                    currentTelephonyCallback = null
+                    telephonyCallbackRef = null
                 } catch (e: Exception) {
                     Log.e(TAG, "Error unregistering TelephonyCallback: ${e.message}")
                 }
             }
         } else {
             // Legacy API
+            @Suppress("DEPRECATION")
             telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
         }
     }
@@ -460,21 +488,19 @@ class MainActivity : AppCompatActivity() {
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
                 startActivity(ussdIntent)
-                Toast.makeText(this, "USSD command sent", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "USSD-команда отправлена", Toast.LENGTH_SHORT).show()
             }
         } catch (e: SecurityException) {
-            Toast.makeText(this, "Cannot send USSD: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Ошибка USSD: ${e.message}", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "USSD error: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "USSD ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         try {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
-            }
+            unregisterCallStateListener()
         } catch (e: Exception) {
             // Ignore cleanup errors
         }

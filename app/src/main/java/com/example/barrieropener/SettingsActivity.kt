@@ -8,9 +8,12 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
-import androidx.preference.*
+import androidx.core.content.ContextCompat
+import androidx.preference.EditTextPreference
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.SwitchPreference
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -28,6 +31,8 @@ class SettingsActivity : AppCompatActivity() {
 
         private lateinit var prefs: SharedPreferences
         private lateinit var geofenceHelper: GeofenceHelper
+
+        // Register launcher in onCreate to avoid lifecycle issues
         private val backgroundLocationLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { isGranted ->
@@ -35,7 +40,11 @@ class SettingsActivity : AppCompatActivity() {
                 addGeofence()
             } else {
                 findPreference<SwitchPreference>("background_mode")?.isChecked = false
-                Toast.makeText(requireContext(), "Требуется разрешение на фоновую геолокацию", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    requireContext(),
+                    "Требуется разрешение на фоновую геолокацию",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
@@ -50,7 +59,8 @@ class SettingsActivity : AppCompatActivity() {
 
             // Phone number
             val phonePref = findPreference<EditTextPreference>("phone_number")
-            val currentPhone = prefs.getString("phone_number", context.getString(R.string.phone_number)) ?: ""
+            val currentPhone =
+                prefs.getString("phone_number", context.getString(R.string.phone_number)) ?: ""
             phonePref?.text = currentPhone
             phonePref?.summary = if (currentPhone.isEmpty()) "Не задано" else currentPhone
             phonePref?.setOnPreferenceChangeListener { _, newValue ->
@@ -61,7 +71,8 @@ class SettingsActivity : AppCompatActivity() {
 
             // USSD code
             val ussdPref = findPreference<EditTextPreference>("ussd_code")
-            val currentUssd = prefs.getString("ussd_code", context.getString(R.string.ussd_code)) ?: ""
+            val currentUssd =
+                prefs.getString("ussd_code", context.getString(R.string.ussd_code)) ?: ""
             ussdPref?.text = currentUssd
             ussdPref?.summary = if (currentUssd.isEmpty()) "Не задано" else currentUssd
             ussdPref?.setOnPreferenceChangeListener { _, newValue ->
@@ -72,7 +83,9 @@ class SettingsActivity : AppCompatActivity() {
 
             // Radius
             val radiusPref = findPreference<EditTextPreference>("default_radius")
-            val currentRadius = prefs.getString("default_radius", context.getString(R.string.default_radius)) ?: "100"
+            val currentRadius =
+                prefs.getString("default_radius", context.getString(R.string.default_radius))
+                    ?: "100"
             radiusPref?.text = currentRadius
             radiusPref?.summary = "$currentRadius м"
             radiusPref?.setOnPreferenceChangeListener { _, newValue ->
@@ -84,8 +97,8 @@ class SettingsActivity : AppCompatActivity() {
             // Current location display
             val locationPref = findPreference<Preference>("current_location")
             val mainPrefs = context.getSharedPreferences("barrier", Context.MODE_PRIVATE)
-            val lat = mainPrefs.getFloat("lat", 61.748333f)
-            val lng = mainPrefs.getFloat("lng", 34.312777f)
+            val lat = mainPrefs.getFloat("lat", 61.7513049f)
+            val lng = mainPrefs.getFloat("lng", 34.3089593f)
             locationPref?.summary = "Широта: $lat, Долгота: $lng"
 
             // Reset location
@@ -175,7 +188,8 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun updateGeofenceStatus(active: Boolean) {
-            findPreference<Preference>("geofence_status")?.summary = if (active) "Активна" else "Не активна"
+            findPreference<Preference>("geofence_status")?.summary =
+                if (active) "Активна" else "Не активна"
         }
     }
 }

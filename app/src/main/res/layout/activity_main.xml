@@ -71,8 +71,7 @@
             android:textSize="24sp"
             app:icon="@android:drawable/ic_lock_power_off"
             app:iconGravity="textStart"
-            app:iconPadding="16dp"
-            app:iconTint="@android:color/white" />
+            app:iconPadding="16dp" />
 
         <!-- Secondary Button -->
         <com.google.android.material.button.MaterialButton

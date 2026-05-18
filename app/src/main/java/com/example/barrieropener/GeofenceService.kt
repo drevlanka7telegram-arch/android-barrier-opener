@@ -21,7 +21,10 @@ class GeofenceService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification("Геозона активирована", "Открытие шлагбаума..."))
+        startForeground(
+            NOTIFICATION_ID,
+            buildNotification("Геозона активирована", "Открытие шлагбаума...")
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
